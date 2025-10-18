@@ -160,32 +160,230 @@ curl http://localhost:3000/api/log-spotify
 
 ## Deployment
 
-### Deploy to Vercel
+This application is designed to run as a serverless application on Vercel with hourly cron execution. Follow these steps to deploy to production.
+
+> **📘 Full Deployment Guide**: See [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md) for the complete step-by-step guide including screenshots and troubleshooting.
+
+### Prerequisites for Deployment
+
+1. Vercel account (sign up at https://vercel.com)
+2. Vercel CLI installed: `npm i -g vercel`
+3. Completed local setup (Spotify + Google Sheets credentials)
+4. Git repository pushed to GitHub
+
+### Quick Deployment Steps
+
+#### 1. Install and Login to Vercel CLI
 
 ```bash
-# First time setup
+npm install -g vercel
 vercel login
-vercel link
+```
 
-# Deploy to production
+#### 2. Link Your Project
+
+```bash
+vercel link
+```
+
+When prompted:
+- **What's your project's name?** → `spotify-song-logger`
+- **In which directory is your code located?** → `./`
+
+#### 3. Create Vercel KV Database
+
+**Via Vercel Dashboard:**
+1. Go to https://vercel.com/dashboard
+2. Select your project
+3. Navigate to "Storage" tab
+4. Click "Create Database" → Select "KV"
+5. Name: `spotify-logger-kv`
+6. Region: Choose closest to you (e.g., `iad1` for US East)
+
+**Via CLI:**
+```bash
+vercel env pull .env.local
+```
+
+#### 4. Add Environment Variables
+
+Add all required environment variables to Vercel:
+
+```bash
+# Spotify Credentials
+vercel env add SPOTIFY_CLIENT_ID
+vercel env add SPOTIFY_CLIENT_SECRET
+vercel env add SPOTIFY_REFRESH_TOKEN
+
+# Google Sheets Credentials
+vercel env add GOOGLE_SHEETS_ID
+vercel env add GOOGLE_SERVICE_ACCOUNT_EMAIL
+vercel env add GOOGLE_PRIVATE_KEY
+
+# Vercel KV Credentials (auto-added when you create KV database)
+vercel env add KV_REST_API_URL
+vercel env add KV_REST_API_TOKEN
+
+# Optional: Feature Flags
+vercel env add ENABLE_AUDIO_FEATURES
+vercel env add ENABLE_ERROR_RETRY
+vercel env add MAX_RETRY_ATTEMPTS
+```
+
+**Important**: When prompted, select **Production**, **Preview**, and **Development** for each variable.
+
+**GOOGLE_PRIVATE_KEY** must include `\n` for line breaks:
+```
+"-----BEGIN PRIVATE KEY-----\nYour\nKey\nHere\n-----END PRIVATE KEY-----\n"
+```
+
+#### 5. Connect KV Database to Project
+
+In Vercel Dashboard:
+1. Go to your project → "Storage" tab
+2. Find your KV database
+3. Click "Connect to Project"
+4. Select all environments (Production, Preview, Development)
+
+#### 6. Deploy to Production
+
+```bash
 vercel --prod
 ```
 
-### Configure Vercel Environment Variables
+This will:
+- Build and deploy your application
+- Set up hourly cron job automatically
+- Return your production URL (e.g., `https://spotify-song-logger.vercel.app`)
 
-Add all environment variables from `.env` to your Vercel project:
+#### 7. Verify Deployment
 
+**Manual Test:**
 ```bash
-vercel env add SPOTIFY_CLIENT_ID
-vercel env add SPOTIFY_CLIENT_SECRET
-# ... add all other variables
+curl https://your-project.vercel.app/api/log-spotify
 ```
 
-Or add them via the Vercel Dashboard under Project Settings → Environment Variables.
+**Check Logs:**
+```bash
+vercel logs --follow
+```
 
-### Set Up Cron Job
+**Verify Cron Job:**
+1. Vercel Dashboard → Your Project → "Cron Jobs" tab
+2. Verify job appears: `/api/log-spotify` running `0 * * * *` (hourly)
 
-The cron job is automatically configured in `vercel.json` to run hourly. No additional setup required.
+**Test Authentication:**
+```bash
+curl https://your-project.vercel.app/api/auth-spotify
+```
+
+### Local Development with Vercel
+
+Test serverless functions locally before deploying:
+
+```bash
+# Link project and pull environment variables
+vercel link
+vercel env pull .env.local
+
+# Start local development server
+vercel dev
+```
+
+Access functions at:
+- `http://localhost:3000/api/log-spotify`
+- `http://localhost:3000/api/auth-spotify`
+
+### Post-Deployment Monitoring
+
+**View Real-Time Logs:**
+```bash
+vercel logs --follow
+```
+
+**Check Function Execution:**
+- Vercel Dashboard → Your Project → "Analytics" tab
+- View invocations, duration, errors
+
+**Monitor Google Sheet:**
+- Verify new rows appear hourly
+- Check "System Logs" sheet for errors
+
+**Inspect State Storage:**
+```bash
+# Access Vercel KV via dashboard or CLI
+vercel env ls
+```
+
+### Updating the Application
+
+**Deploy New Changes:**
+```bash
+git add .
+git commit -m "Your changes"
+git push
+
+vercel --prod
+```
+
+**Update Environment Variables:**
+```bash
+# Remove old variable
+vercel env rm VARIABLE_NAME production
+
+# Add new value
+vercel env add VARIABLE_NAME production
+```
+
+Or update via Vercel Dashboard → Settings → Environment Variables.
+
+**Rollback Deployment:**
+```bash
+# List recent deployments
+vercel ls
+
+# Promote previous deployment to production
+vercel promote <deployment-url>
+```
+
+### Cost Considerations (Vercel Hobby Plan - Free)
+
+**Included:**
+- ✅ Serverless Functions (125k invocations/month)
+- ✅ Cron Jobs (unlimited)
+- ✅ KV Storage (256 MB free)
+- ✅ 100 GB bandwidth
+- ⚠️ 60s max function execution time
+
+**Estimated Monthly Usage (Hourly Cron):**
+- Function invocations: ~730/month (24 × 30 days)
+- KV operations: ~1,500/month
+- Bandwidth: Minimal
+
+**Result**: Well within free tier limits ✅
+
+### Deployment Troubleshooting
+
+**Cron Job Not Running:**
+- Check Vercel Dashboard → Cron Jobs → Verify enabled
+- Redeploy: `vercel --prod`
+- Check logs: `vercel logs`
+
+**KV Connection Errors:**
+```
+Error: KV_REST_API_URL is not defined
+```
+**Solution:**
+1. Verify KV database is connected to project
+2. Redeploy: `vercel --prod`
+3. Check env vars: `vercel env ls`
+
+**Function Timeout (60s limit):**
+- Optimize API calls (use batch operations)
+- Reduce SPOTIFY_FETCH_LIMIT (default: 50)
+- Consider upgrading Vercel plan for longer timeouts
+
+**See [docs/VERCEL_SETUP.md](docs/VERCEL_SETUP.md) for more detailed troubleshooting.**
 
 ## Google Sheet Structure
 
