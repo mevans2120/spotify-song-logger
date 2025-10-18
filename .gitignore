@@ -4,8 +4,20 @@ node_modules/
 coverage/
 .env
 .env.test
+.env.local
 dist/
 *.tgz
 
 # Claude Memory - auto-managed JSON storage (not tracked in git)
 .claude-memory/
+
+# Local state storage (replaced by KV in production)
+.state/
+
+# Vercel
+.vercel
+.vercel.json
+
+# Google Service Account keys (never commit!)
+*-service-account.json
+google-credentials.json
