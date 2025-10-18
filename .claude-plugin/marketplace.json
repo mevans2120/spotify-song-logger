@@ -1,0 +1,15 @@
+{
+  "name": "hybrid-memory-bank-dev-marketplace",
+  "owner": {
+    "name": "Michael Evans",
+    "email": "michael@example.com"
+  },
+  "plugins": [
+    {
+      "name": "hybrid-memory-bank",
+      "source": "./",
+      "description": "Hybrid memory system combining automated JSON storage with human documentation for persistent project context across sessions",
+      "version": "0.2.0"
+    }
+  ]
+}

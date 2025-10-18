@@ -1,0 +1,9 @@
+{
+  "name": "hybrid-memory-bank",
+  "version": "0.2.0",
+  "description": "Hybrid memory system combining automated JSON storage with human documentation for persistent project context across sessions",
+  "author": {
+    "name": "Michael Evans"
+  },
+  "license": "MIT"
+}

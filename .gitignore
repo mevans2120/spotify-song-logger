@@ -1,0 +1,11 @@
+node_modules/
+*.log
+.DS_Store
+coverage/
+.env
+.env.test
+dist/
+*.tgz
+
+# Claude Memory - auto-managed JSON storage (not tracked in git)
+.claude-memory/
