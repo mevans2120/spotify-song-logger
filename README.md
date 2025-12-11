@@ -119,7 +119,11 @@ spotify-song-logger/
 │   ├── data-formatter.js        # Data transformation utilities
 │   ├── play-filter.js           # 30-second play filtering logic
 │   ├── state-manager.js         # State management (KV/local)
-│   └── deduplication.js         # Duplicate detection
+│   ├── deduplication.js         # Duplicate detection
+│   ├── system-logger.js         # System logging to sheets
+│   ├── metrics.js               # Performance metrics tracking
+│   ├── alerting.js              # Alert notifications
+│   └── data-validator.js        # Data validation and quality checks
 ├── scripts/                      # Utility scripts
 │   ├── get-refresh-token.js     # One-time Spotify auth
 │   ├── init-sheets.js           # Initialize Google Sheets structure
@@ -409,23 +413,33 @@ Operational logs for monitoring and debugging:
 
 ### `/api/log-spotify`
 Main logging function (triggered hourly by cron)
-- **Method**: GET/POST
-- **Returns**: `{ success: boolean, tracksLogged: number, duration: number }`
+- **Method**: GET
+- **Cron**: Every hour (`0 * * * *`)
+- **Returns**: `{ success: boolean, stats: { fetched, filtered, logged, failed }, executionTimeMs }`
 
 ### `/api/auth-spotify`
-Refresh Spotify access token
+Test and refresh Spotify access token
 - **Method**: GET
-- **Returns**: `{ accessToken: string, expiresIn: number }`
+- **Query**: `?refresh=true` to force token refresh
+- **Returns**: `{ success: boolean, credentials: {...}, token: {...} }`
 
 ### `/api/retry-failed`
 Process failed attempts from retry queue
-- **Method**: GET/POST
-- **Returns**: `{ retriedCount: number, successCount: number }`
+- **Method**: GET
+- **Cron**: Every 6 hours (`0 */6 * * *`)
+- **Returns**: `{ success: boolean, stats: { processed, succeeded, failed, maxedOut } }`
 
 ### `/api/import-history`
-One-time import of last 50 songs
-- **Method**: POST
-- **Returns**: `{ imported: number, skipped: number }`
+One-time import of last 50 songs to "Historical Data" sheet
+- **Method**: GET
+- **Query**: `?force=true` to re-import, `?limit=N` to limit tracks
+- **Returns**: `{ success: boolean, stats: { fetched, imported, skipped } }`
+
+### `/api/metrics`
+System metrics and health dashboard
+- **Method**: GET
+- **Query**: `?view=weekly` for weekly metrics, `?cleanup=true` to remove old data
+- **Returns**: `{ health: {...}, metrics: {...}, state: {...}, alerts: {...} }`
 
 ## Troubleshooting
 
