@@ -36,6 +36,10 @@ export default async function handler(req, res) {
   let failureCount = 0;
   const executionLog = [];
 
+  // Start metrics and logging
+  startExecution('log-spotify');
+  await logCronStart('log-spotify');
+
   try {
     // Log backend information
     const backend = getStorageBackend();
