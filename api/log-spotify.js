@@ -170,6 +170,10 @@ export default async function handler(req, res) {
       } catch (error) {
         console.warn(`[Log Spotify] Error enriching ${track.track.name}:`, error.message);
 
+        // Track the error
+        trackError('spotify', error);
+        await logSpotifyError('audio-features', error, { affectedTracks: [track.track.id] });
+
         // Create error placeholder
         const errorPlaceholder = createErrorPlaceholder(track, error.message);
         formattedTracks.push(errorPlaceholder);
