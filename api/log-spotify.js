@@ -5,7 +5,7 @@ import { appendRows, getAllRows } from '../lib/sheets-api.js';
 import { loadState, updateLastProcessed, addToFailedQueue, updateStats, getStats, getStorageBackend } from '../lib/state-manager.js';
 import { reconcileState, filterDuplicatesAgainstSheet } from '../lib/deduplication.js';
 import { logCronStart, logCronEnd, logSpotifyError, logSheetsError, flush } from '../lib/system-logger.js';
-import { startExecution, endExecution, trackApiCall, trackError, trackTracks } from '../lib/metrics.js';
+import { startExecution, endExecution, trackError, trackTracks } from '../lib/metrics.js';
 import { trackSuccessfulRun, trackFailedRun, checkAlertThresholds } from '../lib/alerting.js';
 import { validateFormattedTrack, sanitizeTrackData } from '../lib/data-validator.js';
 
@@ -24,6 +24,30 @@ import { validateFormattedTrack, sanitizeTrackData } from '../lib/data-validator
  * Method: GET (triggered by cron or manual request)
  * Response: JSON execution summary
  */
+
+/**
+ * Helper function to finalize execution metrics and logging
+ * @param {number} executionTimeMs - Execution time in milliseconds
+ * @param {number} tracksLogged - Number of tracks successfully logged
+ * @param {number} errorCount - Number of errors encountered
+ */
+async function finalizeExecution(executionTimeMs, tracksLogged, errorCount) {
+  // End metrics tracking
+  await endExecution();
+
+  // Log completion
+  await logCronEnd('log-spotify', {
+    duration: executionTimeMs,
+    tracksLogged,
+    errors: errorCount
+  });
+
+  // Track successful run for consecutive failure counter
+  await trackSuccessfulRun();
+
+  // Flush any remaining logs
+  await flush();
+}
 
 /**
  * Main serverless handler
@@ -65,6 +89,8 @@ export default async function handler(req, res) {
 
     if (tracks.length === 0) {
       executionLog.push('No recent tracks found');
+      const executionTimeMs = Date.now() - startTime;
+      await finalizeExecution(executionTimeMs, 0, 0);
       return res.status(200).json({
         success: true,
         message: 'No recent tracks to process',
@@ -74,7 +100,7 @@ export default async function handler(req, res) {
           unique: 0,
           logged: 0,
           failed: 0,
-          executionTimeMs: Date.now() - startTime
+          executionTimeMs
         },
         log: executionLog
       });
@@ -88,6 +114,8 @@ export default async function handler(req, res) {
 
     if (filteredTracks.length === 0) {
       executionLog.push('No new plays to log. Everything is up to date!');
+      const executionTimeMs = Date.now() - startTime;
+      await finalizeExecution(executionTimeMs, 0, 0);
       return res.status(200).json({
         success: true,
         message: 'No new plays to log',
@@ -97,7 +125,7 @@ export default async function handler(req, res) {
           unique: 0,
           logged: 0,
           failed: 0,
-          executionTimeMs: Date.now() - startTime
+          executionTimeMs
         },
         log: executionLog
       });
@@ -120,6 +148,8 @@ export default async function handler(req, res) {
 
     if (uniqueTracks.length === 0) {
       executionLog.push('All tracks already logged. Nothing new to add!');
+      const executionTimeMs = Date.now() - startTime;
+      await finalizeExecution(executionTimeMs, 0, 0);
       return res.status(200).json({
         success: true,
         message: 'All tracks already logged',
@@ -129,7 +159,7 @@ export default async function handler(req, res) {
           unique: 0,
           logged: 0,
           failed: 0,
-          executionTimeMs: Date.now() - startTime
+          executionTimeMs
         },
         log: executionLog
       });
@@ -222,14 +252,6 @@ export default async function handler(req, res) {
 
     // Track metrics
     trackTracks(uniqueTracks.length, successCount);
-    const executionSummary = await endExecution();
-
-    // Log completion
-    await logCronEnd('log-spotify', {
-      duration: executionTimeMs,
-      tracksLogged: successCount,
-      errors: failureCount
-    });
 
     // Check alert thresholds
     await checkAlertThresholds({
@@ -238,11 +260,8 @@ export default async function handler(req, res) {
       errorCount: failureCount
     });
 
-    // Track successful run for consecutive failure counter
-    await trackSuccessfulRun();
-
-    // Flush any remaining logs
-    await flush();
+    // Finalize execution (metrics, logging, flush)
+    await finalizeExecution(executionTimeMs, successCount, failureCount);
 
     console.log(`[Log Spotify] Execution complete in ${executionTimeSec}s`);
 
