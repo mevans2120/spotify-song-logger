@@ -216,9 +216,33 @@ export default async function handler(req, res) {
     await updateStats(successCount, failureCount);
     executionLog.push('Updated stats');
 
-    // Step 10: Return success response
+    // Step 10: Finalize metrics and logging
     const executionTimeMs = Date.now() - startTime;
     const executionTimeSec = (executionTimeMs / 1000).toFixed(2);
+
+    // Track metrics
+    trackTracks(uniqueTracks.length, successCount);
+    const executionSummary = await endExecution();
+
+    // Log completion
+    await logCronEnd('log-spotify', {
+      duration: executionTimeMs,
+      tracksLogged: successCount,
+      errors: failureCount
+    });
+
+    // Check alert thresholds
+    await checkAlertThresholds({
+      executionTimeMs,
+      totalTracks: uniqueTracks.length,
+      errorCount: failureCount
+    });
+
+    // Track successful run for consecutive failure counter
+    await trackSuccessfulRun();
+
+    // Flush any remaining logs
+    await flush();
 
     console.log(`[Log Spotify] Execution complete in ${executionTimeSec}s`);
 
