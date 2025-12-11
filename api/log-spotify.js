@@ -272,6 +272,19 @@ export default async function handler(req, res) {
 
     const executionTimeMs = Date.now() - startTime;
 
+    // Track the fatal error
+    trackError('other', error);
+    await logSpotifyError('fatal', error);
+
+    // End metrics tracking
+    await endExecution();
+
+    // Track failed run for alerting
+    await trackFailedRun();
+
+    // Flush logs
+    await flush();
+
     // Return error response
     return res.status(500).json({
       success: false,
