@@ -158,7 +158,14 @@ export default async function handler(req, res) {
           primaryArtist
         );
 
-        formattedTracks.push(formatted);
+        // Validate and sanitize
+        const validation = validateFormattedTrack(formatted);
+        if (!validation.valid) {
+          console.warn(`[Log Spotify] Validation warnings for ${track.track.name}:`, validation.errors);
+        }
+        const sanitized = sanitizeTrackData(formatted);
+
+        formattedTracks.push(sanitized);
         successCount++;
       } catch (error) {
         console.warn(`[Log Spotify] Error enriching ${track.track.name}:`, error.message);
