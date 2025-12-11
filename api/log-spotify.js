@@ -4,6 +4,10 @@ import { formatTrackForLogging, formatAsSheetRow, createErrorPlaceholder } from 
 import { appendRows, getAllRows } from '../lib/sheets-api.js';
 import { loadState, updateLastProcessed, addToFailedQueue, updateStats, getStats, getStorageBackend } from '../lib/state-manager.js';
 import { reconcileState, filterDuplicatesAgainstSheet } from '../lib/deduplication.js';
+import { logCronStart, logCronEnd, logSpotifyError, logSheetsError, flush } from '../lib/system-logger.js';
+import { startExecution, endExecution, trackApiCall, trackError, trackTracks } from '../lib/metrics.js';
+import { trackSuccessfulRun, trackFailedRun, checkAlertThresholds } from '../lib/alerting.js';
+import { validateFormattedTrack, sanitizeTrackData } from '../lib/data-validator.js';
 
 /**
  * Vercel Serverless Function: Log Recent Spotify Plays
