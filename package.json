@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "test": "jest",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "jest --watch",
     "test:spotify": "node scripts/test-local-logging.js",
     "test:sheets": "node scripts/init-sheets.js --dry-run",
